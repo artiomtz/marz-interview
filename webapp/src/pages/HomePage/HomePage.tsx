@@ -1,33 +1,37 @@
 import React, { useEffect } from "react";
 import { useState } from "react";
-import { DragDropContext } from 'react-beautiful-dnd';
+import { DragDropContext } from "react-beautiful-dnd";
 import DraggableList from "../../components/DraggableList/DraggableList";
 import Spinner from "../../components/Spinner/Spinner";
 import { Order, OrderData } from "../../components/interfaces";
 import { getInPipelineData, updateOrderStatus } from "../ApiHelper";
-import PageWrapper from '../PageWrapper';
+import PageWrapper from "../PageWrapper";
 
 const DATA_STATES = {
-  waiting: 'WAITING',
-  loaded: 'LOADED',
-  error: 'ERROR'
+  waiting: "WAITING",
+  loaded: "LOADED",
+  error: "ERROR",
 };
 
 interface IdList {
-  '0': string;
-  '1': string;
-  '2': string;
+  "0": string;
+  "1": string;
+  "2": string;
 }
 
 const ID_LIST_MAP: IdList = {
-  '0': 'Queued',
-  '1': 'InProgress',
-  '2': 'QA'
+  "0": "Queued",
+  "1": "InProgress",
+  "2": "QA",
 };
 
 const HomePage = () => {
   const [loadingState, setLoadingState] = useState(DATA_STATES.waiting);
-  const [data, setData] = useState({Queued: [], InProgress: [], QA: []} as OrderData);
+  const [data, setData] = useState({
+    Queued: [],
+    InProgress: [],
+    QA: [],
+  } as OrderData);
 
   const getOrders = async () => {
     setLoadingState(DATA_STATES.waiting);
@@ -36,12 +40,13 @@ const HomePage = () => {
     setLoadingState(errorOccured ? DATA_STATES.error : DATA_STATES.loaded);
   };
 
-  const updateOrder = async (order: Order) => {
+  const removeOrder = async (order: Order) => {
     setLoadingState(DATA_STATES.waiting);
-    const newOrderStatus = order.OrderStatus === 'QA' ? 'Complete' : 'Cancelled';
+    const newOrderStatus =
+      order.OrderStatus === "QA" ? "Complete" : "Cancelled";
     const orderStatusUpdated = await updateOrderStatus(order, newOrderStatus);
     if (orderStatusUpdated) {
-      const columnKey = order.OrderStatus as keyof OrderData
+      const columnKey = order.OrderStatus as keyof OrderData;
       setData({
         ...data,
         [columnKey]: data[columnKey].filter(
@@ -52,13 +57,17 @@ const HomePage = () => {
     setLoadingState(DATA_STATES.loaded);
   };
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = async (result: any) => {
     const { source, destination } = result;
     if (!destination) return;
-    const sourceKey = ID_LIST_MAP[source.droppableId as keyof IdList] as keyof OrderData;
+    const sourceKey = ID_LIST_MAP[
+      source.droppableId as keyof IdList
+    ] as keyof OrderData;
     const sourceIndex = source.index;
 
-    const destKey = ID_LIST_MAP[destination.droppableId as keyof IdList] as keyof OrderData;
+    const destKey = ID_LIST_MAP[
+      destination.droppableId as keyof IdList
+    ] as keyof OrderData;
     const destIndex = destination.index;
 
     if (sourceKey === destKey) {
@@ -66,9 +75,14 @@ const HomePage = () => {
       const [removed] = sourceClone.splice(sourceIndex, 1);
       sourceClone.splice(destIndex, 0, removed);
       setData({ ...data, [sourceKey]: sourceClone });
-    }
-    else {
-        const sourceClone = Array.from(data[sourceKey]);
+    } else {
+      setLoadingState(DATA_STATES.waiting);
+      const sourceClone = Array.from(data[sourceKey]);
+      const orderStatusUpdated = await updateOrderStatus(
+        sourceClone[sourceIndex],
+        destKey
+      );
+      if (orderStatusUpdated) {
         const destClone = Array.from(data[destKey]);
         const [removed] = sourceClone.splice(sourceIndex, 1);
         destClone.splice(destIndex, 0, removed);
@@ -78,6 +92,8 @@ const HomePage = () => {
           [sourceKey]: sourceClone,
           [destKey]: destClone,
         });
+      }
+      setLoadingState(DATA_STATES.loaded);
     }
   };
 
@@ -95,7 +111,7 @@ const HomePage = () => {
         <Spinner />
       </div>
     );
-  else if (loadingState === DATA_STATES.loaded) 
+  else if (loadingState === DATA_STATES.loaded)
     content = (
       <div
         className="flex flex-row justify-center w-full pt-4"
@@ -103,21 +119,21 @@ const HomePage = () => {
       >
         <DragDropContext onDragEnd={handleDragEnd}>
           <DraggableList
-            ID='0'
-            listTitle='Queued'
-            removeOrder={(order: Order) => updateOrder(order)}
+            ID="0"
+            listTitle="Queued"
+            removeOrder={(order: Order) => removeOrder(order)}
             items={data.Queued}
           />
           <DraggableList
-            ID='1'
-            listTitle='In Progess'
-            removeOrder={(order: Order) => updateOrder(order)}
+            ID="1"
+            listTitle="In Progess"
+            removeOrder={(order: Order) => removeOrder(order)}
             items={data.InProgress}
           />
           <DraggableList
-            ID='2'
-            listTitle='QA'
-            removeOrder={(order: Order) => updateOrder(order)}
+            ID="2"
+            listTitle="QA"
+            removeOrder={(order: Order) => removeOrder(order)}
             items={data.QA}
           />
         </DragDropContext>
@@ -133,11 +149,7 @@ const HomePage = () => {
       </div>
     );
 
-  return (
-    <PageWrapper>
-      { content }
-    </PageWrapper>
-  );
-}
+  return <PageWrapper>{content}</PageWrapper>;
+};
 
 export default HomePage;
